@@ -2,9 +2,9 @@ import lxml.etree as etree
 from collections import namedtuple
 import pprint as pp
 
-RedundantRule = namedtuple('RedundantRules',['refrule','duprules'])
+# RedundantRule = namedtuple('RedundantRules',['refrule','duprules'])
 
-redundant_rules = []
+redundant_rules = {}
 
 t = etree.parse('output.xml')
 
@@ -13,17 +13,15 @@ namespaces = {
               'd':'http://www.redseal.net/SCHEMAS/report/access-rule'
              }
 
-query = "//d:device[@name='AuthentifySRX']//d:bp-violation[@title='Redundant Rules']/d:file-lines/d:file-line"
-elements = t.xpath(query,namespaces=namespaces)
+query = "//d:device[@name='AuthentifySRX']//d:bp-violation[@check-id=2]/d:file-lines/d:file-line"
+elems = t.xpath(query,namespaces=namespaces)
 
-for element in elements:
-
-    if 'summary' in element.keys():
-        refrule = element.get('line')
-        duprules = []
+for e in elems:
+    if 'is-first-in-display-group' in e.keys():  # if this is the start of a redundant rule group ...
+        refrule = e.get('line')  # then extract the line # of the "reference rule"
+        if not redundant_rules[refrule]:  # if this is the first time we've seen the reference rule ...
+            redundant_rules[refrule] = set([])  # then create a list to hold the assoc'd redundant rules
     else:
-        duprules.append(element.get('line'))
-
-    redundant_rules.append(RedundantRule(refrule=refrule, duprules=duprules))
+        redundant_rules[refrule].add(e.get('line'))  # this rule is redundant, add to set (to avoid dups)
 
 pp.pprint(redundant_rules)
